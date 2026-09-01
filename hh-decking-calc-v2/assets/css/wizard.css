@@ -1,0 +1,268 @@
+:root {
+  --hh-green: #00ac5a;
+  --hh-green-hover: #008f4b;
+  --hh-grey: #444444;
+  --hh-light-grey: #f4f4f4;
+  --hh-border: #ddd;
+  --hh-white: #ffffff;
+  --hh-font-head: 'Amiko', sans-serif;
+  --hh-font-body: 'Lato', sans-serif;
+}
+
+.hh-dc-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: var(--hh-font-body);
+  color: var(--hh-grey);
+  background: var(--hh-white);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+
+/* --- Progress Bar --- */
+.hh-dc-progress { margin-bottom: 30px; }
+.hh-dc-steps-indicator { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.step-dot { font-family: var(--hh-font-head); font-size: 0.85rem; font-weight: 600; color: #bbb; }
+.step-dot.active { color: var(--hh-green); }
+.hh-dc-progress-track { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
+.hh-dc-progress-fill { height: 100%; background: var(--hh-green); width: 25%; transition: width 0.3s ease; }
+
+/* --- Slides --- */
+.hh-dc-slide { display: none; animation: fadeIn 0.4s ease; }
+.hh-dc-slide.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.hh-dc-slide-header { margin-bottom: 24px; text-align: center; }
+.hh-dc-slide-header h3 { font-family: var(--hh-font-head); margin: 0 0 8px 0; font-size: 1.5rem; }
+.hh-dc-slide-header p { margin: 0; color: #777; }
+
+/* --- VISUAL SELECTION CARDS --- */
+.hh-dc-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+/* 2 kolommen voor Dikte/Poles om ruimte te besparen */
+.hh-dc-cards-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr); 
+}
+
+.hh-dc-card-option { position: relative; cursor: pointer; }
+.hh-dc-card-option input[type="radio"] { position: absolute; opacity: 0; cursor: pointer; }
+
+.hh-dc-card-inner {
+  display: block;
+  border: 2px solid var(--hh-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background: #fff;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.hh-dc-card-img {
+  height: 120px; /* Iets kleiner voor subtielere look */
+  background-color: #eee;
+  background-size: cover;
+  background-position: center;
+}
+
+.hh-dc-card-content { padding: 12px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;}
+.hh-dc-card-title { display: block; font-family: var(--hh-font-head); font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+.hh-dc-card-desc { font-size: 0.85rem; color: #777; line-height: 1.4; }
+
+.hh-dc-card-option:hover .hh-dc-card-inner { border-color: #bbb; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+.hh-dc-card-option input[type="radio"]:checked + .hh-dc-card-inner {
+  border-color: var(--hh-green);
+  background-color: #f0fdf4;
+  box-shadow: 0 0 0 1px var(--hh-green);
+}
+
+/* Niet-beschikbare opties (bv. uitverkocht) */
+.hh-dc-card-option.disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.hh-dc-card-option.disabled .hh-dc-card-inner {
+  background: var(--hh-light-grey);
+  border-color: var(--hh-border);
+  opacity: 0.6;
+}
+.hh-dc-card-option.disabled:hover .hh-dc-card-inner {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--hh-border);
+}
+.hh-dc-card-option.disabled .hh-dc-card-title {
+  text-decoration: line-through;
+  color: #999;
+}
+.hh-dc-card-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #c53030;
+}
+
+/* Mobiel */
+@media (max-width: 600px) {
+  .hh-dc-cards-grid, .hh-dc-cards-grid.cols-2 { grid-template-columns: 1fr; }
+  .hh-dc-card-img { height: 140px; }
+}
+
+/* --- Inputs --- */
+.hh-dc-field-group { margin-bottom: 20px; }
+.hh-dc-field-group label { display: block; font-weight: 600; margin-bottom: 8px; }
+.hh-dc-field-group input, .hh-dc-field-group select {
+  width: 100%; padding: 12px; border: 1px solid var(--hh-border);
+  border-radius: 4px; font-size: 1rem; box-sizing: border-box;
+}
+
+/* --- Buttons --- */
+.hh-dc-nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
+.hh-dc-btn { padding: 12px 24px; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; font-size: 1rem; }
+.hh-dc-btn.primary { background: var(--hh-green); color: white; }
+.hh-dc-btn.primary:hover { background: var(--hh-green-hover); }
+.hh-dc-btn.secondary { background: #e0e0e0; color: var(--hh-grey); }
+.hh-dc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Resultaat --- */
+.hh-dc-results-grid { display: flex; flex-direction: column; gap: 12px; }
+.hh-dc-item-card { display: flex; gap: 16px; padding: 12px; border: 1px solid #eee; border-radius: 6px; }
+.hh-dc-item-img { width: 60px; height: 60px; flex: 0 0 60px; }
+.hh-dc-item-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+.hh-dc-qty { background: var(--hh-green); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; margin-right: 6px; }
+
+/* NIEUW: Actieknoppen en Contact */
+.hh-dc-actions-final {
+    margin-top: 40px; /* Meer ruimte boven knoppen */
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    flex-direction: column; /* Mobiel first: onder elkaar */
+    gap: 15px;
+    align-items: center;
+}
+@media(min-width: 600px) {
+    .hh-dc-actions-final { flex-direction: row; justify-content: space-between; }
+}
+
+.hh-dc-contact-help {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: #777;
+}
+.hh-dc-contact-help a {
+    color: var(--hh-green);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* --- Voorraadmelding & Lead Capture --- */
+.hh-dc-out-of-stock-msg {
+    text-align: center;
+    padding: 25px;
+    background: #fff5f5;
+    border: 2px solid #feb2b2;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.hh-dc-out-of-stock-msg h4 {
+    color: #c53030;
+    margin-top: 0;
+}
+
+.hh-dc-failed-list {
+    text-align: left;
+    display: inline-block;
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+/* FIX: Zorg dat de mail-knop direct de primaire groene kleur heeft */
+.hh-dc-out-of-stock-msg .hh-dc-btn.primary {
+    background-color: var(--hh-green) !important;
+    color: #ffffff !important;
+    display: inline-block;
+    text-decoration: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-weight: 700;
+    margin-top: 15px;
+    border: none;
+    transition: background-color 0.2s ease;
+}
+
+.hh-dc-out-of-stock-msg .hh-dc-btn.primary:hover {
+    background-color: var(--hh-green-hover) !important;
+}
+
+/* Advies Box Container */
+.hh-dc-result-container .hh-dc-advice-box {
+    margin: 20px 0;
+    border: none; /* Border verwijderd */
+    overflow: hidden;
+    text-align: left;
+}
+
+/* De Toggle Knop */
+.hh-dc-result-container .hh-dc-advice-toggle {
+    width: 100%;
+    background: #f0fdf4;
+    color: var(--hh-green);
+    padding: 15px;
+    border: none;
+    text-align: left;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--hh-font-head);
+    border-radius: 8px; /* Zorgt voor nette hoekjes zonder border */
+}
+
+/* De Inhoud (Standaard VERBORGEN) */
+.hh-dc-result-container .hh-dc-advice-content {
+    display: none !important;
+    padding: 20px;
+    background: #fff;
+    text-align: left;
+}
+
+/* De Inhoud (TONEN bij active) */
+.hh-dc-result-container .hh-dc-advice-content.active {
+    display: block !important;
+}
+
+/* FIX VOOR BULLETPOINTS: Naar rechts duwen en uitlijnen */
+.hh-dc-advice-content ul {
+    margin: 15px 0 15px 25px !important; /* Forceert de lijst naar rechts */
+    padding-left: 0 !important;
+    list-style-type: disc !important; /* Zorgt dat bolletjes zichtbaar zijn */
+}
+
+.hh-dc-advice-content li {
+    margin-bottom: 10px;
+    list-style-position: outside !important; /* Tekst springt netjes in bij meerdere regels */
+    line-height: 1.5;
+    display: list-item !important; /* Forceert de weergave als lijst-item */
+}
+
+/* Pijltje animatie */
+.hh-dc-advice-toggle:after {
+    content: '▼';
+    font-size: 0.7em;
+    transition: transform 0.3s ease;
+}
+
+.hh-dc-advice-toggle.open:after {
+    transform: rotate(180deg);
+}
