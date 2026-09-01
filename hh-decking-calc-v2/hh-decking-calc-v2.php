@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       HH Decking Calculator V2 (Test)
  * Description:       TEST-versie (v2) van de stappenplan calculator, onafhankelijk van de live plugin. Bevat de nieuwe bamboe vlonderplank-maten.
- * Version:           0.2.0
+ * Version:           0.3.0
  * Author:            Jij
  * Text Domain:       hh-decking-calc-v2
  * Requires at least: 6.0
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // WordPress gebruikt dit als cache-busting query-param (?ver=...) op de asset-URL's.
 // Blijft dit nummer gelijk, dan kan de browser (of een cache-/optimalisatieplugin)
 // gewoon het oude bestand blijven serveren, ook al staat het nieuwe al op de server.
-define( 'HH_DC2_VERSION', '0.2.0' );
+define( 'HH_DC2_VERSION', '0.3.0' );
 define( 'HH_DC2_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HH_DC2_URL', plugin_dir_url( __FILE__ ) );
 
@@ -88,10 +88,10 @@ add_action( 'wp_enqueue_scripts', 'hh_dc2_enqueue_assets' );
 function hh_dc2_shortcode() {
 	ob_start();
 	?>
-	<div class="hh-dc-wrapper">
-		
+	<div class="hh-dc-wrapper" id="hh-dc2-wrapper">
+
 		<div class="hh-dc-progress">
-			<div class="hh-dc-progress-track"><div class="hh-dc-progress-fill" id="dc-progress-fill"></div></div>
+			<div class="hh-dc-progress-track"><div class="hh-dc-progress-fill" id="dc2-progress-fill"></div></div>
 			<div class="hh-dc-steps-indicator">
 				<span class="step-dot active">1. Materiaal</span>
 				<span class="step-dot">2. Afmeting</span>
@@ -100,16 +100,16 @@ function hh_dc2_shortcode() {
 			</div>
 		</div>
 
-		<form id="dc-form" class="hh-dc-form" novalidate>
-			
+		<form id="dc2-form" class="hh-dc-form" novalidate>
+
 			<div class="hh-dc-slide active" data-step="1">
 				<div class="hh-dc-slide-header">
 					<h3>Kies je materiaal</h3>
 					<p>Selecteer de gewenste uitstraling voor je terras.</p>
 				</div>
-				
+
 				<div class="hh-dc-cards-grid">
-                    
+
                     <label class="hh-dc-card-option">
 						<input type="radio" name="type" value="hout" required>
 						<div class="hh-dc-card-inner">
@@ -145,9 +145,9 @@ function hh_dc2_shortcode() {
 
 				</div>
 
-                <div id="dc-subtype-wrapper" style="display:none; margin-top:30px;">
+                <div id="dc2-subtype-wrapper" style="display:none; margin-top:30px;">
                     <h4 style="text-align:center; margin-bottom:15px;">Kies de uitvoering</h4>
-					<div id="dc-subtype-container" class="hh-dc-cards-grid">
+					<div id="dc2-subtype-container" class="hh-dc-cards-grid">
                         </div>
 				</div>
 			</div>
@@ -159,12 +159,12 @@ function hh_dc2_shortcode() {
 				</div>
 				<div class="hh-dc-row-2-col" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
 					<div class="hh-dc-field-group">
-						<label for="dc-length">Lengte (m)</label>
-						<input type="number" step="0.01" min="0" id="dc-length" name="length" placeholder="Bijv. 5.00" required>
+						<label for="dc2-length">Lengte (m)</label>
+						<input type="number" step="0.01" min="0" id="dc2-length" name="length" placeholder="Bijv. 5.00" required>
 					</div>
 					<div class="hh-dc-field-group">
-						<label for="dc-width">Breedte (m)</label>
-						<input type="number" step="0.01" min="0" id="dc-width" name="width" placeholder="Bijv. 3.00" required>
+						<label for="dc2-width">Breedte (m)</label>
+						<input type="number" step="0.01" min="0" id="dc2-width" name="width" placeholder="Bijv. 3.00" required>
 					</div>
 				</div>
 			</div>
@@ -174,43 +174,45 @@ function hh_dc2_shortcode() {
 					<h3>Details & Afwerking</h3>
 				</div>
 
-				<div id="dc-height-wrapper" style="display:none; margin-bottom:24px;">
+				<div id="dc2-height-wrapper" style="display:none; margin-bottom:24px;">
 					<label style="display:block; font-weight:600; margin-bottom:8px;">Dikte plank</label>
-					<div id="dc-height-container" class="hh-dc-cards-grid cols-2"></div>
+					<div id="dc2-height-container" class="hh-dc-cards-grid cols-2"></div>
 				</div>
 
-                <div id="dc-color-wrapper" style="display:none; margin-bottom:24px;">
+                <div id="dc2-color-wrapper" style="display:none; margin-bottom:24px;">
                     <label style="display:block; font-weight:600; margin-bottom:8px;">Kleur</label>
-					<div id="dc-color-container" class="hh-dc-cards-grid"></div>
+					<div id="dc2-color-container" class="hh-dc-cards-grid"></div>
 				</div>
 
-                <div id="dc-poles-wrapper" style="margin-bottom:24px;">
+                <div id="dc2-poles-wrapper" style="margin-bottom:24px;">
 					<label style="display:block; font-weight:600; margin-bottom:8px;">Onderconstructie</label>
-					<div id="dc-poles-container" class="hh-dc-cards-grid cols-2"></div>
+					<div id="dc2-poles-container" class="hh-dc-cards-grid cols-2"></div>
                     </div>
 
-                <div id="dc-pole-size-wrapper" style="display:none;">
+                <div id="dc2-pole-size-wrapper" style="display:none;">
 					<label style="display:block; font-weight:600; margin-bottom:8px;">Maat piketpaal</label>
-					<div id="dc-pole-size-container" class="hh-dc-cards-grid cols-2"></div>
+					<div id="dc2-pole-size-container" class="hh-dc-cards-grid cols-2"></div>
 				</div>
 			</div>
 
+			<div id="dc2-slide-error" class="hh-dc-slide-error" style="display:none;" role="alert"></div>
+
 			<div class="hh-dc-nav-buttons">
-				<button type="button" id="dc-btn-prev" class="hh-dc-btn secondary" disabled>Terug</button>
-				<button type="button" id="dc-btn-next" class="hh-dc-btn primary">Volgende</button>
-				<button type="submit" id="dc-btn-calc" class="hh-dc-btn primary" style="display:none;">Bereken materiaal</button>
+				<button type="button" id="dc2-btn-prev" class="hh-dc-btn secondary" disabled>Terug</button>
+				<button type="button" id="dc2-btn-next" class="hh-dc-btn primary">Volgende</button>
+				<button type="submit" id="dc2-btn-calc" class="hh-dc-btn primary" style="display:none;">Bereken materiaal</button>
 			</div>
 
 		</form>
 
-		<div id="dc-result-container" class="hh-dc-result-container" style="display:none;">
-			<div id="dc-result" class="hh-dc-result"></div>
-			
+		<div id="dc2-result-container" class="hh-dc-result-container" style="display:none;">
+			<div id="dc2-result" class="hh-dc-result"></div>
+
             <p class="hh-dc-contact-help">Kom je er niet uit? <a href="/contact">Neem contact op</a></p>
 
 			<div class="hh-dc-actions-final">
-				<button type="button" id="dc-btn-restart" class="hh-dc-btn secondary">Opnieuw berekenen</button>
-				<button type="button" id="dc-add-to-cart" class="hh-dc-btn primary cart-btn" style="display:none;">In winkelmand plaatsen</button>
+				<button type="button" id="dc2-btn-restart" class="hh-dc-btn secondary">Opnieuw berekenen</button>
+				<button type="button" id="dc2-add-to-cart" class="hh-dc-btn primary cart-btn" style="display:none;">In winkelmand plaatsen</button>
 			</div>
 		</div>
 

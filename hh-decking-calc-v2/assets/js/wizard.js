@@ -1,42 +1,65 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("dc-form");
-    const resultContainer = document.getElementById("dc-result-container");
-    const resultBox = document.getElementById("dc-result");
-    const navButtons = document.querySelector(".hh-dc-nav-buttons");
+    // Let op: ALLE element-ID's hier hebben een "dc2-" prefix (nooit "dc-").
+    // v1 (de live plugin) gebruikt de kale "dc-" ID's. Zonder dit onderscheid
+    // zouden, als beide shortcodes ooit op dezelfde pagina staan, v1 en v2 hun
+    // JavaScript op elkaars velden loslaten (document.getElementById geeft altijd
+    // maar 1 element terug) - met precies dit soort onverklaarbare gedrag tot gevolg:
+    // stappen die willekeurig verspringen, clicks die niet aankomen, foutmeldingen
+    // die tegelijk met een resultaat verschijnen, etc.
+    const root = document.getElementById("hh-dc2-wrapper");
+    const form = document.getElementById("dc2-form");
+    const resultContainer = document.getElementById("dc2-result-container");
+    const resultBox = document.getElementById("dc2-result");
+    const navButtons = form.querySelector(".hh-dc-nav-buttons");
+    const slideError = document.getElementById("dc2-slide-error");
 
     // Knoppen
-    const addToCartBtn = document.getElementById("dc-add-to-cart");
-    const restartBtn = document.getElementById("dc-btn-restart");
-    const prevBtn = document.getElementById("dc-btn-prev");
-    const nextBtn = document.getElementById("dc-btn-next");
-    const calcBtn = document.getElementById("dc-btn-calc");
+    const addToCartBtn = document.getElementById("dc2-add-to-cart");
+    const restartBtn = document.getElementById("dc2-btn-restart");
+    const prevBtn = document.getElementById("dc2-btn-prev");
+    const nextBtn = document.getElementById("dc2-btn-next");
+    const calcBtn = document.getElementById("dc2-btn-calc");
 
     // Containers (Wrappers en Grids)
-    const subtypeWrapper = document.getElementById("dc-subtype-wrapper");
-    const subtypeContainer = document.getElementById("dc-subtype-container");
-    
-    const colorWrapper = document.getElementById("dc-color-wrapper");
-    const colorContainer = document.getElementById("dc-color-container");
+    const subtypeWrapper = document.getElementById("dc2-subtype-wrapper");
+    const subtypeContainer = document.getElementById("dc2-subtype-container");
+
+    const colorWrapper = document.getElementById("dc2-color-wrapper");
+    const colorContainer = document.getElementById("dc2-color-container");
 
     // Dikte / Maat (Height)
-    const heightWrapper = document.getElementById("dc-height-wrapper");
-    const heightContainer = document.getElementById("dc-height-container");
+    const heightWrapper = document.getElementById("dc2-height-wrapper");
+    const heightContainer = document.getElementById("dc2-height-container");
 
     // Onderconstructie (Poles)
-    const polesWrapper = document.getElementById("dc-poles-wrapper");
-    const polesContainer = document.getElementById("dc-poles-container");
-    
-    // Paalmaat
-    const poleSizeWrapper = document.getElementById("dc-pole-size-wrapper");
-    const poleSizeContainer = document.getElementById("dc-pole-size-container");
+    const polesWrapper = document.getElementById("dc2-poles-wrapper");
+    const polesContainer = document.getElementById("dc2-poles-container");
 
-    // Progress & Slides
+    // Paalmaat
+    const poleSizeWrapper = document.getElementById("dc2-pole-size-wrapper");
+    const poleSizeContainer = document.getElementById("dc2-pole-size-container");
+
+    // Progress & Slides (bewust gescoped binnen "root", nooit document-breed - zelfde
+    // reden als hierboven; de voortgangsbalk staat buiten <form>, dus form.querySelectorAll
+    // zou de stap-bolletjes missen)
     const slides = form.querySelectorAll(".hh-dc-slide");
-    const stepDots = document.querySelectorAll(".step-dot");
-    const progressFill = document.getElementById("dc-progress-fill");
+    const stepDots = root.querySelectorAll(".step-dot");
+    const progressFill = document.getElementById("dc2-progress-fill");
 
     let currentStep = 1;
-    const totalSteps = slides.length; 
+    const totalSteps = slides.length;
+
+    // --- INLINE VALIDATIEMELDING (i.p.v. window.alert) ---
+    function showSlideError(msg) {
+        if (!slideError) { alert(msg); return; }
+        slideError.textContent = msg;
+        slideError.style.display = "block";
+    }
+    function clearSlideError() {
+        if (!slideError) return;
+        slideError.style.display = "none";
+        slideError.textContent = "";
+    }
 
     // --- ENTER TOETS NAVIGATIE ---
     form.addEventListener("keydown", function(e) {
@@ -79,20 +102,6 @@ document.addEventListener("DOMContentLoaded", function () {
         'teak':       'https://www.haarlemsehouthandel.nl/wp-content/uploads/2025/04/resized_to_match_reference.png',
         'ebony':      'https://www.haarlemsehouthandel.nl/wp-content/uploads/2023/01/IMG_0185.jpg',
         'espresso':   'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg'
-    };
-
-    // 2b. Foto's per plankbreedte (Maat plank-stap bij bamboe vlonderplanken).
-    // TODO: dit zijn nog GEEN foto's van de specifieke 100mm/200mm producten zelf
-    // (die kon ik niet ophalen - de productpagina's zijn vanuit deze omgeving niet
-    // bereikbaar). Nu hergebruikt: de bestaande espresso-vlonderplank-foto voor de
-    // (espresso-only) 100mm en 200mm breedtes, en de algemene vlonderplank-foto voor
-    // 140mm (die kent zowel espresso als ebony). Vervang onderstaande URL's door de
-    // echte productfoto's zodra je die hebt (rechtsklik op de foto op de site ->
-    // "Afbeeldingadres kopiëren").
-    const PLANK_WIDTH_IMAGES = {
-        100: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg',
-        140: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2022/06/IMG_4435-525x700.jpg',
-        200: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg'
     };
 
     // 3. Onderconstructie
@@ -280,8 +289,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 return {
                     value: w,
                     label: `${w} mm breed`,
-                    desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank",
-                    img: PLANK_WIDTH_IMAGES[w] || null
+                    desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank"
                 };
             });
         } else {
@@ -372,6 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
     form.addEventListener("change", function(e) {
         const target = e.target;
         const name = target.name;
+        clearSlideError();
         if (name === "type" || name === "subtype") {
             updateSubtypeOptions();
             return;
@@ -386,29 +395,32 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // --- VALIDATIE ---
+    // Toont de melding inline (boven de knoppen), geen window.alert() meer -
+    // dat onderbrak de flow met een blokkerend popup-schermpje.
     function validateCurrentSlide() {
         const activeSlide = form.querySelector(".hh-dc-slide.active");
         if (!activeSlide) return true;
         const step = activeSlide.dataset.step;
+        clearSlideError();
 
         if (step === "1") {
-            if (!getRadioValue("type")) { alert("Kies materiaal."); return false; }
-            if (subtypeWrapper && subtypeWrapper.style.display !== "none" && !getRadioValue("subtype")) { 
-                alert("Kies uitvoering."); return false; 
+            if (!getRadioValue("type")) { showSlideError("Kies eerst een materiaal."); return false; }
+            if (subtypeWrapper && subtypeWrapper.style.display !== "none" && !getRadioValue("subtype")) {
+                showSlideError("Kies een uitvoering."); return false;
             }
         }
         if (step === "3") {
             const subtype = getRadioValue("subtype") || "";
             if (heightWrapper && heightWrapper.style.display !== "none" && !getRadioValue("height")) {
-                alert(isBamboePlank(getRadioValue("type"), subtype) ? "Kies een maat plank." : "Kies dikte.");
+                showSlideError(isBamboePlank(getRadioValue("type"), subtype) ? "Kies eerst een maat plank." : "Kies eerst een dikte.");
                 return false;
             }
             if (colorWrapper && colorWrapper.style.display !== "none" && !getRadioValue("color")) {
-                alert(getRadioValue("height") ? "Kies kleur." : "Kies eerst een maat, dan kun je een kleur kiezen.");
+                showSlideError("Kies een kleur.");
                 return false;
             }
             if (polesWrapper && polesWrapper.style.display !== "none" && !getRadioValue("poles")) {
-                alert("Kies onderconstructie."); return false;
+                showSlideError("Kies een onderconstructie."); return false;
             }
         }
 
@@ -438,12 +450,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     nextBtn.addEventListener("click", () => { if (validateCurrentSlide() && currentStep < totalSteps) { currentStep++; showSlide(currentStep); } });
-    prevBtn.addEventListener("click", () => { if (currentStep > 1) { currentStep--; showSlide(currentStep); } });
-    
+    prevBtn.addEventListener("click", () => { clearSlideError(); if (currentStep > 1) { currentStep--; showSlide(currentStep); } });
+
     restartBtn.addEventListener("click", () => {
+        clearSlideError();
         form.style.display = "block";
         resultContainer.style.display = "none";
-        if(navButtons) navButtons.style.display = "flex"; 
+        if(navButtons) navButtons.style.display = "flex";
         currentStep = 1;
         showSlide(1);
         form.reset();
@@ -468,8 +481,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const payload = {
             type: getRadioValue("type"),
             subtype: getRadioValue("subtype") || "",
-            length: parseFloat(document.getElementById("dc-length").value),
-            width: parseFloat(document.getElementById("dc-width").value),
+            length: parseFloat(document.getElementById("dc2-length").value),
+            width: parseFloat(document.getElementById("dc2-width").value),
             height: parseInt(getRadioValue("height"), 10) || 0,
             color: getRadioValue("color"),
             poles: getRadioValue("poles") || "none",
@@ -610,8 +623,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Helper functie voor de mailto link
     function generateMailtoLink(failedItems) {
         const subject = encodeURIComponent("Aanvraag vlonderpakket - Voorraad assistentie");
-        const length = document.getElementById("dc-length").value;
-        const width = document.getElementById("dc-width").value;
+        const length = document.getElementById("dc2-length").value;
+        const width = document.getElementById("dc2-width").value;
         let bodyText = `Beste Haarlemse Houthandel,\n\n`;
         bodyText += `Ik wilde via de calculator een vlonder bestellen van ${length}m x ${width}m.\n`;
         bodyText += `Helaas kreeg ik een melding dat de volgende producten niet op voorraad zijn:\n`;

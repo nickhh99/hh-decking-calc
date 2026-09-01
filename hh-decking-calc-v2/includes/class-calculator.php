@@ -568,11 +568,19 @@ class Calculator {
         $boards_float    = $total_run_m / $board_len_m;
         $boards_with_waste = ceil( $boards_float * 1.03 );
 
+        $row_width_cm = round( $row_width_m * 100, 1 );
+
         return [
             'qty'          => (int) $boards_with_waste,
             'rows'         => $rows,
             'board_len_mm' => $board_len_mm,
-            'explain'      => sprintf('Rijbreedte: %.3fm, Totaal %d rijen. Inclusief 3%% zaagverlies.', $row_width_m, $rows),
+            'explain'      => sprintf(
+                'Elke rij is ca. %s cm breed (%dmm plank + 6mm voegruimte). Voor deze breedte heb je %d %s nodig. Er is 3%% extra plank meegerekend voor zaagverlies.',
+                number_format( $row_width_cm, 1, ',', '.' ),
+                $width_mm,
+                $rows,
+                ( $rows === 1 ? 'rij' : 'rijen' )
+            ),
         ];
     }
 
