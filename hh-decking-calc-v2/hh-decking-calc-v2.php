@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       HH Decking Calculator V2 (Test)
  * Description:       TEST-versie (v2) van de stappenplan calculator, onafhankelijk van de live plugin. Bevat de nieuwe bamboe vlonderplank-maten.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Author:            Jij
  * Text Domain:       hh-decking-calc-v2
  * Requires at least: 6.0
@@ -13,7 +13,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HH_DC2_VERSION', '0.1.0' );
+// BELANGRIJK: hoog dit nummer op bij ELKE wijziging aan wizard.js/wizard.css.
+// WordPress gebruikt dit als cache-busting query-param (?ver=...) op de asset-URL's.
+// Blijft dit nummer gelijk, dan kan de browser (of een cache-/optimalisatieplugin)
+// gewoon het oude bestand blijven serveren, ook al staat het nieuwe al op de server.
+define( 'HH_DC2_VERSION', '0.2.0' );
 define( 'HH_DC2_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HH_DC2_URL', plugin_dir_url( __FILE__ ) );
 

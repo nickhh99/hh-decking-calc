@@ -74,11 +74,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 2. Kleuren
     const COLOR_IMAGES = {
-        'stone_grey': 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2023/01/IMG_0189.jpg', 
+        'stone_grey': 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2023/01/IMG_0189.jpg',
         'ipe':        'https://www.haarlemsehouthandel.nl/wp-content/uploads/2023/01/IMG_0187.jpg',
         'teak':       'https://www.haarlemsehouthandel.nl/wp-content/uploads/2025/04/resized_to_match_reference.png',
         'ebony':      'https://www.haarlemsehouthandel.nl/wp-content/uploads/2023/01/IMG_0185.jpg',
         'espresso':   'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg'
+    };
+
+    // 2b. Foto's per plankbreedte (Maat plank-stap bij bamboe vlonderplanken).
+    // TODO: dit zijn nog GEEN foto's van de specifieke 100mm/200mm producten zelf
+    // (die kon ik niet ophalen - de productpagina's zijn vanuit deze omgeving niet
+    // bereikbaar). Nu hergebruikt: de bestaande espresso-vlonderplank-foto voor de
+    // (espresso-only) 100mm en 200mm breedtes, en de algemene vlonderplank-foto voor
+    // 140mm (die kent zowel espresso als ebony). Vervang onderstaande URL's door de
+    // echte productfoto's zodra je die hebt (rechtsklik op de foto op de site ->
+    // "Afbeeldingadres kopiëren").
+    const PLANK_WIDTH_IMAGES = {
+        100: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg',
+        140: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2022/06/IMG_4435-525x700.jpg',
+        200: 'https://www.haarlemsehouthandel.nl/wp-content/uploads/2024/06/IMG_4431-525x700.jpg'
     };
 
     // 3. Onderconstructie
@@ -266,7 +280,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 return {
                     value: w,
                     label: `${w} mm breed`,
-                    desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank"
+                    desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank",
+                    img: PLANK_WIDTH_IMAGES[w] || null
                 };
             });
         } else {
