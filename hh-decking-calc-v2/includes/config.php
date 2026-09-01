@@ -237,14 +237,14 @@ const CONFIG = [
 			'product_length_mm'  => 1860,
 			'product'            => 33446,
 		],
-		'hhline_bamboe_plank_espresso_18x200x2000' => [
+		'hhline_bamboe_plank_espresso_18x200x2200' => [
 			'type'               => 'bamboe',
 			'subtype'            => 'plank',
 			'color'              => 'espresso',
-			'label'              => 'HHLine Bamboe Vlonderplank Espresso 18x200x2000',
+			'label'              => 'HHLine Bamboe Vlonderplank Espresso 18x200x2200',
 			'width_mm'           => 200,
 			'thick_mm'           => 18,
-			'product_length_mm'  => 2000, // FIX (v2): stond niet ingevuld, waardoor dit product (verkeerd) op 1860mm werd doorgerekend.
+			'product_length_mm'  => 2200, // Klant-correctie: werkelijke planklengte is 2200mm (niet 2000mm zoals de product-URL suggereert).
 			'product'            => 48135,
 		],
 
