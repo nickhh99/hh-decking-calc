@@ -97,7 +97,7 @@
   box-shadow: none;
   border-color: var(--hh-border);
 }
-.hh-dc-card-option.disabled .hh-dc-card-title {
+.hh-dc-card-option.disabled:not(.locked) .hh-dc-card-title {
   text-decoration: line-through;
   color: #999;
 }
@@ -107,6 +107,14 @@
   font-size: 0.8rem;
   font-weight: 700;
   color: #c53030;
+}
+
+/* "Locked" = nog niet aan de beurt (bv. kleur voordat een maat gekozen is).
+   Grijs en niet-klikbaar zoals .disabled, maar GEEN doorstreping: dit is
+   geen uitverkocht/niet-beschikbaar product, alleen nog niet je beurt. */
+.hh-dc-card-option.locked .hh-dc-card-note {
+  color: #777;
+  font-weight: 600;
 }
 
 /* Mobiel */

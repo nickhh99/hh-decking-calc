@@ -17,12 +17,10 @@ document.addEventListener("DOMContentLoaded", function () {
     
     const colorWrapper = document.getElementById("dc-color-wrapper");
     const colorContainer = document.getElementById("dc-color-container");
-    const colorInputHidden = document.getElementById("dc-color-input");
 
-    // Dikte (Height)
+    // Dikte / Maat (Height)
     const heightWrapper = document.getElementById("dc-height-wrapper");
     const heightContainer = document.getElementById("dc-height-container");
-    const heightInputHidden = document.getElementById("dc-height-input");
 
     // Onderconstructie (Poles)
     const polesWrapper = document.getElementById("dc-poles-wrapper");
@@ -109,11 +107,12 @@ document.addEventListener("DOMContentLoaded", function () {
         options.forEach(opt => {
             const isChecked = (String(opt.value) === String(selectedValue));
             const isDisabled = !!opt.disabled;
+            const isLocked = !!opt.locked;
             const imgHtml = opt.img ? `<div class="hh-dc-card-img" style="background-image: url('${opt.img}');"></div>` : '';
             const noteHtml = opt.note ? `<span class="hh-dc-card-note">${opt.note}</span>` : '';
 
             const html = `
-                <label class="hh-dc-card-option${isDisabled ? ' disabled' : ''}">
+                <label class="hh-dc-card-option${isDisabled ? ' disabled' : ''}${isLocked ? ' locked' : ''}">
                     <input type="radio" name="${name}" value="${opt.value}" ${isChecked && !isDisabled ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
                     <div class="hh-dc-card-inner">
                         ${imgHtml}
@@ -144,6 +143,21 @@ document.addEventListener("DOMContentLoaded", function () {
         updateFields();
     }
 
+    // ============================================================
+    // MAAT (dikte/breedte) EN KLEUR: EENRICHTINGS-FLOW
+    // ------------------------------------------------------------
+    // UX-principe: eerst kiest de klant de Maat (dikte, of bij bamboe
+    // vlonderplanken: breedte), pas daarna wordt Kleur klikbaar. Dit
+    // voorkomt dat de twee stappen elkaar over-en-weer filteren, wat
+    // eerder voor een "springende" UI en inconsistente clicks zorgde
+    // (containers werden bij elke wijziging helemaal herbouwd).
+    //
+    // Beide optielijsten zijn daarom PUUR afhankelijk van type+subtype
+    // (dus altijd compleet en stabiel, nooit gefilterd door de andere
+    // keuze). Alleen de "disabled"-status van een kleur-kaart hangt af
+    // van de gekozen maat — de kaart zelf blijft altijd zichtbaar.
+    // ============================================================
+
     // Bamboe vlonderplanken zijn altijd 18mm dik en verschillen alleen in BREEDTE
     // (width_mm). Voor die combinatie gebruiken we width_mm als "maat"-dimensie
     // in plaats van thick_mm, anders is er geen manier om tussen de breedtes te kiezen.
@@ -151,161 +165,208 @@ document.addEventListener("DOMContentLoaded", function () {
         return type === 'bamboe' && subtype === 'plank';
     }
 
-    function getValidOptions(type, subtype, currentHeight, currentColor) {
-        const validHeights = new Set();
-        const validColors = new Set();
+    function getMappings() {
+        return (typeof HHDC2 !== 'undefined' && HHDC2.config && HHDC2.config.mappings)
+            ? Object.values(HHDC2.config.mappings)
+            : [];
+    }
+
+    // Alle mogelijke maten (thick_mm, of width_mm voor bamboe planken) voor dit type+subtype.
+    function getAllSizes(type, subtype) {
         const sizeField = isBamboePlank(type, subtype) ? 'width_mm' : 'thick_mm';
+        const sizes = new Set();
+        getMappings().forEach((map) => {
+            if (map.type !== type) return;
+            if ((map.subtype || "") !== subtype) return;
+            if (map[sizeField] && map[sizeField] > 0) sizes.add(map[sizeField]);
+        });
+        return Array.from(sizes).sort((a, b) => a - b);
+    }
 
-        if (typeof HHDC2 !== 'undefined' && HHDC2.config && HHDC2.config.mappings) {
-            Object.values(HHDC2.config.mappings).forEach((map) => {
-              if (map.type !== type) return;
-              const mapSubtype = map.subtype || "";
-              if (mapSubtype !== subtype) return;
+    // Alle mogelijke kleuren voor dit type+subtype (ongeacht gekozen maat).
+    function getAllColors(type, subtype) {
+        const colors = new Set();
+        getMappings().forEach((map) => {
+            if (map.type !== type) return;
+            if ((map.subtype || "") !== subtype) return;
+            if (map.color) colors.add(map.color);
+        });
+        return Array.from(colors).sort();
+    }
 
-              let colorMatch = true;
-              if (currentColor && map.color && map.color !== currentColor) colorMatch = false;
-              if (colorMatch && map[sizeField] && map[sizeField] > 0) validHeights.add(map[sizeField]);
+    // Bestaat er een product voor deze combinatie van maat + kleur?
+    // Subtypes zonder échte maat-keuze (bv. vlondertegels: width_mm/thick_mm = 0
+    // voor elke kleur) hebben niets om op te matchen — daar is elke kleur altijd
+    // geldig, ongeacht "size".
+    function isColorValidForSize(type, subtype, size, color) {
+        const sizeField = isBamboePlank(type, subtype) ? 'width_mm' : 'thick_mm';
+        return getMappings().some((map) => {
+            if (map.type !== type) return false;
+            if ((map.subtype || "") !== subtype) return false;
+            if (map.color !== color) return false;
+            if (!map[sizeField] || map[sizeField] <= 0) return true;
+            return size !== "" && String(map[sizeField]) === String(size);
+        });
+    }
 
-              let heightMatch = true;
-              if (currentHeight && map[sizeField] && map[sizeField] != currentHeight) heightMatch = false;
-              if (heightMatch && map.color) validColors.add(map.color);
-            });
+    // --- STAP: Onderconstructie (ongewijzigd, onafhankelijk van maat/kleur) ---
+    function renderPolesStep(subtype) {
+        const isTile = (subtype === 'tegel');
+        const selectedPoles = getRadioValue("poles");
+        const selectedPoleSize = getRadioValue("pole_size");
+
+        if (isTile) {
+            if(polesWrapper) polesWrapper.style.display = "none";
+            if(poleSizeWrapper) poleSizeWrapper.style.display = "none";
+            return;
         }
 
-        return {
-          heights: Array.from(validHeights).sort((a, b) => a - b),
-          colors: Array.from(validColors).sort()
-        };
+        if(polesWrapper) polesWrapper.style.display = "block";
+        if(polesContainer && polesContainer.innerHTML.trim() === "") {
+             renderCards(polesContainer, "poles", POLE_OPTIONS, selectedPoles || "none");
+        } else if (polesContainer) {
+             renderCards(polesContainer, "poles", POLE_OPTIONS, selectedPoles);
+        }
+        const currentPoleVal = getRadioValue("poles");
+        if (currentPoleVal === "with") {
+            if(poleSizeWrapper) poleSizeWrapper.style.display = "block";
+            if(poleSizeContainer) renderCards(poleSizeContainer, "pole_size", POLE_SIZE_OPTIONS, selectedPoleSize || "40x40");
+        } else {
+            if(poleSizeWrapper) poleSizeWrapper.style.display = "none";
+        }
+    }
+
+    // --- STAP 1 (van 2): Maat / dikte plank ---
+    // Wordt alleen herbouwd bij een type/subtype-wissel, NOOIT als reactie op
+    // een kleurkeuze — zo blijft deze lijst altijd stabiel en "springt" er niets.
+    // Retourneert de uiteindelijk (eventueel auto-)geselecteerde maat, of "".
+    function renderSizeStep(type, subtype) {
+        const isTile = (subtype === 'tegel');
+        const isPlank = isBamboePlank(type, subtype);
+        const sizes = isTile ? [] : getAllSizes(type, subtype);
+
+        if (sizes.length === 0 && subtype !== 'bangkirai') {
+            if(heightWrapper) heightWrapper.style.display = "none";
+            if(heightContainer) heightContainer.innerHTML = "";
+            return "";
+        }
+
+        if(heightWrapper) heightWrapper.style.display = "block";
+        const heightLabel = heightWrapper ? heightWrapper.querySelector('label') : null;
+        if (heightLabel) heightLabel.textContent = isPlank ? 'Maat plank (breedte)' : 'Dikte plank';
+
+        let sizeOptions;
+        if (isPlank) {
+            // Toon per breedte ook de bijbehorende planklengte, zodat duidelijk is
+            // dat dit unieke, losse producten zijn (geen lengte-varianten van elkaar).
+            const mappings = getMappings();
+            sizeOptions = sizes.map(w => {
+                const map = mappings.find(m => m.type === 'bamboe' && m.subtype === 'plank' && m.width_mm == w);
+                const lengte = map && map.product_length_mm ? map.product_length_mm : null;
+                return {
+                    value: w,
+                    label: `${w} mm breed`,
+                    desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank"
+                };
+            });
+        } else {
+            sizeOptions = sizes.map(h => ({
+                value: h,
+                label: `${h} mm`,
+                desc: "Dikte"
+            }));
+        }
+
+        // Tijdelijk: 27mm bij Bangkirai altijd tonen, maar uitverkocht
+        if (subtype === 'bangkirai') {
+            const existingIndex = sizeOptions.findIndex(o => String(o.value) === "27");
+            const outOfStockOpt = { value: 27, label: "27 mm", desc: "Dikte", disabled: true, note: "Voorlopig uitverkocht" };
+
+            if (existingIndex !== -1) {
+                sizeOptions[existingIndex] = outOfStockOpt;
+            } else {
+                sizeOptions.push(outOfStockOpt);
+                sizeOptions.sort((a, b) => a.value - b.value);
+            }
+        }
+
+        // Alleen auto-select als er precies 1 SELECTEERBARE (niet-disabled) optie is
+        // (bijv. composiet/vlondertegel/visgraat, die maar 1 maat kennen).
+        const selectableSizes = sizeOptions.filter(o => !o.disabled);
+        const autoValue = (selectableSizes.length === 1) ? String(selectableSizes[0].value) : "";
+
+        if(heightContainer) renderCards(heightContainer, "height", sizeOptions, autoValue);
+
+        return autoValue;
+    }
+
+    // --- STAP 2 (van 2): Kleur ---
+    // Alle kleuren voor dit type+subtype blijven ALTIJD zichtbaar. Zolang er nog
+    // geen maat gekozen is, staan ze grijs/niet-klikbaar ("Kies eerst een maat").
+    // Zodra een maat gekozen is, worden alleen de kleuren die daadwerkelijk voor
+    // die maat bestaan klikbaar; de rest blijft zichtbaar maar uitgegrijsd.
+    function renderColorStep(type, subtype, selectedSize) {
+        const colors = getAllColors(type, subtype);
+
+        if (colors.length === 0) {
+            if(colorWrapper) colorWrapper.style.display = "none";
+            if(colorContainer) colorContainer.innerHTML = "";
+            return;
+        }
+
+        if(colorWrapper) colorWrapper.style.display = "block";
+
+        const maatWoord = isBamboePlank(type, subtype) ? 'maat' : 'dikte';
+        const colorOptions = colors.map(c => {
+            const cleanName = c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " ");
+            const imgUrl = COLOR_IMAGES[c] || `https://via.placeholder.com/300/cccccc/ffffff?text=${cleanName}`;
+            const valid = isColorValidForSize(type, subtype, selectedSize, c);
+            const locked = !valid && !selectedSize;
+            return {
+                value: c,
+                label: cleanName,
+                img: imgUrl,
+                disabled: !valid,
+                locked: locked,
+                note: !valid ? (selectedSize ? `Niet beschikbaar bij deze ${maatWoord}` : `Kies eerst een ${maatWoord}`) : ""
+            };
+        });
+
+        // Auto-select als er (na het kiezen van een maat) precies 1 geldige kleur over is.
+        const selectable = colorOptions.filter(o => !o.disabled);
+        const autoValue = (selectedSize && selectable.length === 1) ? String(selectable[0].value) : "";
+
+        if(colorContainer) renderCards(colorContainer, "color", colorOptions, autoValue);
     }
 
     function updateFields() {
         const type = getRadioValue("type");
-        const subtype = getRadioValue("subtype") || ""; 
-        const selectedHeight = heightInputHidden ? heightInputHidden.value : "";
-        const selectedColor = colorInputHidden ? colorInputHidden.value : ""; 
-        const selectedPoles = getRadioValue("poles");
-        const selectedPoleSize = getRadioValue("pole_size");
-        const isTile = (subtype === 'tegel');
+        const subtype = getRadioValue("subtype") || "";
 
-        const { heights, colors } = getValidOptions(type, subtype, selectedHeight, selectedColor);
-
-        // Onderconstructie
-        if (isTile) {
-            if(polesWrapper) polesWrapper.style.display = "none";
-            if(poleSizeWrapper) poleSizeWrapper.style.display = "none";
-        } else {
-            if(polesWrapper) polesWrapper.style.display = "block";
-            if(polesContainer && polesContainer.innerHTML.trim() === "") {
-                 renderCards(polesContainer, "poles", POLE_OPTIONS, selectedPoles || "none");
-            } else if (polesContainer) {
-                 renderCards(polesContainer, "poles", POLE_OPTIONS, selectedPoles);
-            }
-            const currentPoleVal = getRadioValue("poles");
-            if (currentPoleVal === "with") {
-                if(poleSizeWrapper) poleSizeWrapper.style.display = "block";
-                if(poleSizeContainer) renderCards(poleSizeContainer, "pole_size", POLE_SIZE_OPTIONS, selectedPoleSize || "40x40");
-            } else {
-                if(poleSizeWrapper) poleSizeWrapper.style.display = "none";
-            }
-        }
-
-        // Dikte (of, bij bamboe vlonderplanken: breedte)
-        if ((heights.length === 0 && subtype !== 'bangkirai') || isTile) {
-            if(heightWrapper) heightWrapper.style.display = "none";
-            if(heightInputHidden) heightInputHidden.value = "0";
-        } else {
-            if(heightWrapper) heightWrapper.style.display = "block";
-
-            const isPlank = isBamboePlank(type, subtype);
-            const heightLabel = heightWrapper ? heightWrapper.querySelector('label') : null;
-            if (heightLabel) heightLabel.textContent = isPlank ? 'Maat plank (breedte)' : 'Dikte plank';
-
-            let heightOptions;
-            if (isPlank) {
-                // Toon per breedte ook de bijbehorende planklengte, zodat duidelijk is
-                // dat dit unieke, losse producten zijn (geen lengte-varianten van elkaar).
-                const mappings = (typeof HHDC2 !== 'undefined' && HHDC2.config) ? Object.values(HHDC2.config.mappings) : [];
-                heightOptions = heights.map(w => {
-                    const map = mappings.find(m => m.type === 'bamboe' && m.subtype === 'plank' && m.width_mm == w && (!selectedColor || m.color === selectedColor));
-                    const lengte = map && map.product_length_mm ? map.product_length_mm : null;
-                    return {
-                        value: w,
-                        label: `${w} mm breed`,
-                        desc: lengte ? `Planklengte ${lengte} mm` : "Vlonderplank"
-                    };
-                });
-            } else {
-                heightOptions = heights.map(h => ({
-                    value: h,
-                    label: `${h} mm`,
-                    desc: "Dikte"
-                }));
-            }
-
-            // Tijdelijk: 27mm bij Bangkirai altijd tonen, maar uitverkocht
-            if (subtype === 'bangkirai') {
-                const existingIndex = heightOptions.findIndex(o => String(o.value) === "27");
-                const outOfStockOpt = { value: 27, label: "27 mm", desc: "Dikte", disabled: true, note: "Voorlopig uitverkocht" };
-
-                if (existingIndex !== -1) {
-                    heightOptions[existingIndex] = outOfStockOpt;
-                } else {
-                    heightOptions.push(outOfStockOpt);
-                    heightOptions.sort((a, b) => a.value - b.value);
-                }
-            }
-
-            if(heightContainer) renderCards(heightContainer, "height_radio", heightOptions, selectedHeight);
-
-            // Alleen auto-select als er precies 1 SELECTEERBARE (niet-disabled) optie is
-            const selectableHeights = heightOptions.filter(o => !o.disabled);
-            if (selectableHeights.length === 1 && !selectedHeight) {
-                if(heightInputHidden) heightInputHidden.value = selectableHeights[0].value;
-                if(heightContainer) renderCards(heightContainer, "height_radio", heightOptions, selectableHeights[0].value);
-            }
-        }
-
-        // Kleuren
-        if (colors.length > 0) {
-            if(colorWrapper) colorWrapper.style.display = "block";
-            const colorOptions = colors.map(c => {
-                const cleanName = c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " ");
-                const imgUrl = COLOR_IMAGES[c] || `https://via.placeholder.com/300/cccccc/ffffff?text=${cleanName}`;
-                return { value: c, label: cleanName, img: imgUrl };
-            });
-            if(colorContainer) renderCards(colorContainer, "color_radio", colorOptions, selectedColor);
-        } else {
-            if(colorWrapper) colorWrapper.style.display = "none";
-            if(colorInputHidden) colorInputHidden.value = "";
-        }
+        renderPolesStep(subtype);
+        const autoSize = renderSizeStep(type, subtype);
+        renderColorStep(type, subtype, autoSize || getRadioValue("height"));
     }
 
     // --- EVENT LISTENERS ---
+    // Belangrijk voor een consistente, niet-"springende" UI: elke stap herbouwt
+    // alléén de container(s) die daadwerkelijk van die keuze afhangen.
+    // - Maat kiezen  -> ververst alleen Kleur (welke kleuren geldig zijn).
+    // - Kleur kiezen -> ververst niets (niets hangt ervan af); de browser toont
+    //   de selectie zelf al direct via de radio's :checked-status.
     form.addEventListener("change", function(e) {
         const target = e.target;
         const name = target.name;
-        if (name === "type") {
-            if(colorInputHidden) colorInputHidden.value = "";
-            if(heightInputHidden) heightInputHidden.value = "";
-            updateSubtypeOptions(); 
+        if (name === "type" || name === "subtype") {
+            updateSubtypeOptions();
             return;
         }
-        if (name === "subtype") {
-            if(colorInputHidden) colorInputHidden.value = "";
-            if(heightInputHidden) heightInputHidden.value = "";
-            updateFields();
+        if (name === "height") {
+            renderColorStep(getRadioValue("type"), getRadioValue("subtype") || "", target.value);
             return;
-        }
-        if (name === "color_radio") {
-            if(colorInputHidden) colorInputHidden.value = target.value;
-            updateFields();
-        }
-        if (name === "height_radio") {
-            if(heightInputHidden) heightInputHidden.value = target.value;
-            updateFields(); 
         }
         if (name === "poles") {
-            updateFields(); 
+            renderPolesStep(getRadioValue("subtype") || "");
         }
     });
 
@@ -322,14 +383,17 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
         if (step === "3") {
-            if (colorWrapper && colorWrapper.style.display !== "none" && colorInputHidden && !colorInputHidden.value) { 
-                alert("Kies kleur."); return false; 
+            const subtype = getRadioValue("subtype") || "";
+            if (heightWrapper && heightWrapper.style.display !== "none" && !getRadioValue("height")) {
+                alert(isBamboePlank(getRadioValue("type"), subtype) ? "Kies een maat plank." : "Kies dikte.");
+                return false;
             }
-            if (heightWrapper && heightWrapper.style.display !== "none" && heightInputHidden && !heightInputHidden.value) { 
-                alert("Kies dikte."); return false; 
+            if (colorWrapper && colorWrapper.style.display !== "none" && !getRadioValue("color")) {
+                alert(getRadioValue("height") ? "Kies kleur." : "Kies eerst een maat, dan kun je een kleur kiezen.");
+                return false;
             }
-            if (polesWrapper && polesWrapper.style.display !== "none" && !getRadioValue("poles")) { 
-                alert("Kies onderconstructie."); return false; 
+            if (polesWrapper && polesWrapper.style.display !== "none" && !getRadioValue("poles")) {
+                alert("Kies onderconstructie."); return false;
             }
         }
 
@@ -375,9 +439,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if(heightContainer) heightContainer.innerHTML = "";
         if(heightWrapper) heightWrapper.style.display = "none";
         if(polesContainer) polesContainer.innerHTML = "";
-        if(colorInputHidden) colorInputHidden.value = "";
-        if(heightInputHidden) heightInputHidden.value = "";
-        updateSubtypeOptions(); 
+        updateSubtypeOptions();
     });
 
     // --- SUBMIT ---
@@ -393,8 +455,8 @@ document.addEventListener("DOMContentLoaded", function () {
             subtype: getRadioValue("subtype") || "",
             length: parseFloat(document.getElementById("dc-length").value),
             width: parseFloat(document.getElementById("dc-width").value),
-            height: parseInt(heightInputHidden ? heightInputHidden.value : 0, 10) || 0,
-            color: colorInputHidden ? colorInputHidden.value : "",
+            height: parseInt(getRadioValue("height"), 10) || 0,
+            color: getRadioValue("color"),
             poles: getRadioValue("poles") || "none",
             pole_size: getRadioValue("pole_size") || ""
         };

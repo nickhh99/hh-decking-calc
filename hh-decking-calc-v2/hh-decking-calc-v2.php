@@ -170,16 +170,14 @@ function hh_dc2_shortcode() {
 					<h3>Details & Afwerking</h3>
 				</div>
 
-                <div id="dc-color-wrapper" style="display:none; margin-bottom:24px;">
-                    <label style="display:block; font-weight:600; margin-bottom:8px;">Kleur</label>
-					<div id="dc-color-container" class="hh-dc-cards-grid"></div>
-                    <input type="hidden" id="dc-color-input" name="color"> 
-				</div>
-
 				<div id="dc-height-wrapper" style="display:none; margin-bottom:24px;">
 					<label style="display:block; font-weight:600; margin-bottom:8px;">Dikte plank</label>
 					<div id="dc-height-container" class="hh-dc-cards-grid cols-2"></div>
-                    <input type="hidden" id="dc-height-input" name="height">
+				</div>
+
+                <div id="dc-color-wrapper" style="display:none; margin-bottom:24px;">
+                    <label style="display:block; font-weight:600; margin-bottom:8px;">Kleur</label>
+					<div id="dc-color-container" class="hh-dc-cards-grid"></div>
 				</div>
 
                 <div id="dc-poles-wrapper" style="margin-bottom:24px;">
