@@ -21,6 +21,71 @@ define( 'HH_BC_VERSION', '1.0.0' );
 define( 'HH_BC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HH_BC_URL', plugin_dir_url( __FILE__ ) );
 
+require_once HH_BC_PATH . 'includes/config.php';
+
+use const HH\BambooConfigurator\PRODUCT_IDS;
+
+/**
+ * Huidige WooCommerce-prijs van een (simpel of variatie-)product, als float.
+ * Geeft null terug als WooCommerce niet actief is of het product niet (meer) bestaat
+ * — zo hardcoden we nooit een prijs, en kan de front-end een ontbrekende prijs expliciet
+ * anders tonen i.p.v. per ongeluk "€ 0" te laten zien.
+ */
+function hh_bc_get_price( int $product_id, int $variation_id = 0 ): ?float {
+	if ( ! function_exists( 'wc_get_product' ) ) {
+		return null;
+	}
+	$product = wc_get_product( $variation_id ?: $product_id );
+	if ( ! $product ) {
+		return null;
+	}
+	$price = $product->get_price();
+	return ( $price === '' || $price === null ) ? null : (float) $price;
+}
+
+/**
+ * Bouwt de volledige prijs-map op basis van PRODUCT_IDS, live uit WooCommerce.
+ * Dit is de enige plek waar prijzen worden opgehaald — nergens hardcoded.
+ */
+function hh_bc_build_price_map(): array {
+	$ids = PRODUCT_IDS;
+
+	$prices = [
+		'planks' => [],
+		'visgraat' => [
+			'espresso' => hh_bc_get_price( $ids['visgraat']['espresso'] ),
+			'ebony'    => hh_bc_get_price( $ids['visgraat']['ebony'] ),
+		],
+		'regel'        => hh_bc_get_price( $ids['regel']['product'], $ids['regel']['variation'] ),
+		'granulaatpad' => hh_bc_get_price( $ids['granulaatpad'] ),
+		'tussenclips'  => hh_bc_get_price( $ids['tussenclips'] ),
+		'startclips'   => hh_bc_get_price( $ids['startclips'] ),
+		'paal'         => [],
+		'slotbouten'   => [],
+		'olie'         => [
+			'small' => hh_bc_get_price( $ids['olie']['small'] ),
+			'large' => hh_bc_get_price( $ids['olie']['large'] ),
+		],
+	];
+
+	foreach ( $ids['planks'] as $maat => $colors ) {
+		$prices['planks'][ $maat ] = [];
+		foreach ( $colors as $color => $product_id ) {
+			$prices['planks'][ $maat ][ $color ] = hh_bc_get_price( $product_id );
+		}
+	}
+
+	foreach ( $ids['piketpaal'] as $size => $map ) {
+		$prices['paal'][ $size ] = hh_bc_get_price( $map['product'], $map['variation'] );
+	}
+
+	foreach ( $ids['slotbouten'] as $size => $map ) {
+		$prices['slotbouten'][ $size ] = hh_bc_get_price( $map['product'], $map['variation'] );
+	}
+
+	return $prices;
+}
+
 /**
  * Assets & fonts enqueuen — alleen op pagina's die de shortcode daadwerkelijk gebruiken,
  * zodat deze widget niet overal op de site wordt geladen.
@@ -44,13 +109,26 @@ function hh_bc_enqueue_assets() {
 		HH_BC_VERSION
 	);
 
-	wp_enqueue_script(
+	wp_register_script(
 		'hh-bc-configurator',
 		HH_BC_URL . 'assets/js/configurator.js',
 		array(),
 		HH_BC_VERSION,
 		true
 	);
+
+	wp_localize_script(
+		'hh-bc-configurator',
+		'HHBC',
+		array(
+			// Live uit WooCommerce gelezen op het moment dat de pagina wordt opgebouwd —
+			// geen hardcoded prijzen. Ontbrekende/onvindbare producten komen als null door;
+			// de JS toont dan een duidelijke melding i.p.v. een foutieve "€ 0".
+			'prices' => hh_bc_build_price_map(),
+		)
+	);
+
+	wp_enqueue_script( 'hh-bc-configurator' );
 }
 add_action( 'wp_enqueue_scripts', 'hh_bc_enqueue_assets' );
 
@@ -163,9 +241,11 @@ function hh_bc_shortcode( $atts ) {
 							<label class="hh-bc-group-label">Kleur</label>
 							<div class="hh-bc-opt-row hh-bc-cols-2" id="hhbc-colorRow">
 								<label class="hh-bc-opt hh-bc-color-opt"><input type="radio" name="hhbc-color" value="espresso" checked>
-									<canvas data-hhbc-swatch="espresso"></canvas><span class="hh-bc-opt-title">Espresso</span></label>
+									<canvas data-hhbc-swatch="espresso"></canvas>
+									<div class="hh-bc-color-opt-text"><span class="hh-bc-opt-title">Espresso</span></div></label>
 								<label class="hh-bc-opt hh-bc-color-opt"><input type="radio" name="hhbc-color" value="ebony">
-									<canvas data-hhbc-swatch="ebony"></canvas><span class="hh-bc-opt-title">Ebony</span></label>
+									<canvas data-hhbc-swatch="ebony"></canvas>
+									<div class="hh-bc-color-opt-text"><span class="hh-bc-opt-title">Ebony</span><div class="hh-bc-lock-note">Alleen bij 140mm</div></div></label>
 							</div>
 						</div>
 						<div class="hh-bc-opt-group">
@@ -209,11 +289,13 @@ function hh_bc_shortcode( $atts ) {
 								<button type="button" class="hh-bc-btn-secondary" id="hhbc-applyDiscountBtn">Toepassen</button>
 							</div>
 							<div class="hh-bc-discount-msg" id="hhbc-discountMsg"></div>
-							<p class="hh-bc-price-note">Richtprijs incl. vlonderplanken, regels, bevestiging, clips en onderhoudsolie — o.b.v. dezelfde rekenregels als de volledige rekentool. Prijzen per stuk zijn nog indicatief. Verzending niet inbegrepen. Geldt voor een rechthoekig terras — bij een afwijkende vorm <a href="<?php echo $contact_url; ?>">mail ons je schets + maten →</a></p>
+							<p class="hh-bc-price-note">Richtprijs incl. vlonderplanken, regels, bevestiging, clips en onderhoudsolie — o.b.v. dezelfde rekenregels als de volledige rekentool, met actuele prijzen uit de webshop. Verzending niet inbegrepen. Geldt voor een rechthoekig terras — bij een afwijkende vorm <a href="<?php echo $contact_url; ?>">mail ons je schets + maten →</a></p>
 						</div>
 					</details>
 
 				</div>
+
+				<div class="hh-bc-price-warning" id="hhbc-priceWarning" hidden>Niet alle prijzen konden geladen worden. Ververs de pagina, of <a href="<?php echo $contact_url; ?>">vraag een offerte op maat aan</a>.</div>
 
 				<div class="hh-bc-pricebar">
 					<div class="hh-bc-pricebar-info">

@@ -10,7 +10,17 @@
     200: { boardLenMm: 2200 }
   };
   var VISGRAAT = { widthMm: 140, boardLenMm: 700 };
-  var PRICE_PER_BOARD = { 100: 11.5, 140: 15.9, 200: 24.5, visgraat: 6.9 }; // indicatief, nog echte prijzen invullen
+
+  // Prijzen komen NIET hardcoded hier te staan: ze worden server-side live uit
+  // WooCommerce gelezen (zie hh_bc_build_price_map() in hh-bamboe-configurator.php,
+  // o.b.v. de product/variatie-ID's in includes/config.php) en via wp_localize_script
+  // als window.HHBC.prices aangeleverd. Zo werkt een prijswijziging in de shop meteen
+  // door, zonder dat hier iets aangepast hoeft te worden.
+  var PRICES = (window.HHBC && window.HHBC.prices) || {};
+
+  // Geeft het getal terug, of null als de prijs niet kon worden opgehaald (ontbrekend
+  // product, WooCommerce niet actief, etc.) — nooit een verzonnen placeholderwaarde.
+  function priceOf(v){ return (typeof v === 'number' && !isNaN(v)) ? v : null; }
 
   // Onderconstructie — zelfde rekenregels als Calculator::calc_regels() / calc_piketpalen() /
   // calc_granulaatpads() / calc_clips() / calc_slotbouten() / calc_olie() in
@@ -19,44 +29,40 @@
   var ACC_SPACING_M = 0.375;
   var REGEL_BEAM_LEN_M = 3.90;
   var REGEL_WASTE = 1.01;
-  var PRICE = {
-    regel: 18.5,           // Bangkirai regel 40x60, 3900mm
-    paal_40x40: 6.25,
-    paal_50x50: 8.95,
-    granulaatpad: 1.15,
-    tussenclips_doos: 24.5,  // doos à 100 st.
-    startclips_doos: 9.75,   // doos à 25 st.
-    slotbouten_doos: 14.5,   // doos à 25 st.
-    olie_075: 19.5,
-    olie_250: 54.5
-  }; // allemaal indicatief, nog echte Visma-prijzen invullen (zie config.php in hh-decking-calc-v2)
 
+  // Berekent de accessoires + hun prijs. `complete` geeft aan of ALLE benodigde
+  // eenheidsprijzen beschikbaar waren — zo niet, dan toont de UI een waarschuwing
+  // i.p.v. een te lage/foutieve richtprijs op basis van stilzwijgend weggelaten posten.
   function calcAccessories(lenM, widM, surfaceM2, plankQty, plankRows, pattern, poles, poleSize){
     var rowCount = Math.ceil(lenM/ACC_SPACING_M) + 1; // regel-/palenrijen (onafhankelijk van legrichting planken)
+    var complete = true;
+    function take(v){ var p = priceOf(v); if (p===null){ complete=false; return 0; } return p; }
 
     var regelQty = Math.ceil((rowCount*widM*REGEL_WASTE) / REGEL_BEAM_LEN_M);
-    var regelPrice = regelQty * PRICE.regel;
+    var regelPrice = regelQty * take(PRICES.regel);
 
     var palenQty = 0, padsQty = 0, palenPrice = 0, boutenQty = 0, boutenPrice = 0;
     if (poles === 'with'){
       palenQty = rowCount * (Math.ceil(widM/1.0) + 1);
-      palenPrice = palenQty * (poleSize==='50x50' ? PRICE.paal_50x50 : PRICE.paal_40x40);
+      var paalPrice = poleSize==='50x50' ? take(PRICES.paal && PRICES.paal['50x50']) : take(PRICES.paal && PRICES.paal['40x40']);
+      palenPrice = palenQty * paalPrice;
       boutenQty = Math.ceil(palenQty/25);
-      boutenPrice = boutenQty * PRICE.slotbouten_doos;
+      var boutenDoosPrice = poleSize==='50x50' ? take(PRICES.slotbouten && PRICES.slotbouten['50x50']) : take(PRICES.slotbouten && PRICES.slotbouten['40x40']);
+      boutenPrice = boutenQty * boutenDoosPrice;
     } else {
       padsQty = rowCount * (Math.ceil(widM/1.0) + 1);
-      palenPrice = padsQty * PRICE.granulaatpad;
+      palenPrice = padsQty * take(PRICES.granulaatpad);
     }
 
     var tussenClipsTotal = pattern==='visgraat' ? plankQty*4 : plankRows*rowCount;
     var tussenDozen = Math.ceil(tussenClipsTotal/100);
-    var clipsPrice = tussenDozen*PRICE.tussenclips_doos;
+    var clipsPrice = tussenDozen*take(PRICES.tussenclips);
     var startDozen = 0;
-    if (pattern !== 'visgraat'){ startDozen = Math.ceil((rowCount*2)/25); clipsPrice += startDozen*PRICE.startclips_doos; }
+    if (pattern !== 'visgraat'){ startDozen = Math.ceil((rowCount*2)/25); clipsPrice += startDozen*take(PRICES.startclips); }
 
     var smallOlieNeeded = Math.ceil(surfaceM2/15);
     var largeOlie = Math.floor(smallOlieNeeded/3), smallOlie = smallOlieNeeded%3;
-    var oliePrice = largeOlie*PRICE.olie_250 + smallOlie*PRICE.olie_075;
+    var oliePrice = largeOlie*take(PRICES.olie && PRICES.olie.large) + smallOlie*take(PRICES.olie && PRICES.olie.small);
 
     return {
       rowCount: rowCount,
@@ -65,7 +71,8 @@
       boutenQty: boutenQty, boutenPrice: boutenPrice,
       clipsPrice: clipsPrice,
       oliePrice: oliePrice,
-      total: regelPrice + palenPrice + boutenPrice + clipsPrice + oliePrice
+      total: regelPrice + palenPrice + boutenPrice + clipsPrice + oliePrice,
+      complete: complete
     };
   }
 
@@ -321,6 +328,20 @@
       if (locked){ state.maatMm = 140; var r=$('#hhbc-maatRow .hh-bc-opt[data-hhbc-mm="140"] input'); if(r) r.checked=true; }
     }
 
+    // Ebony bestaat in de catalogus alleen bij de 140mm vlonderplank (zie
+    // includes/config.php, PRODUCT_IDS['planks']) — bij 100/200mm recht, of als die maat
+    // nog niet gekozen is, is alleen espresso leverbaar. Visgraat heeft beide kleuren.
+    function syncColorAvailability(){
+      var onlyEspresso = state.pattern !== 'visgraat' && state.maatMm !== 140;
+      var ebonyInput = $('#hhbc-colorRow input[value="ebony"]');
+      if (ebonyInput) ebonyInput.disabled = onlyEspresso;
+      if (onlyEspresso && state.color === 'ebony'){
+        state.color = 'espresso';
+        var espressoInput = $('#hhbc-colorRow input[value="espresso"]');
+        if (espressoInput) espressoInput.checked = true;
+      }
+    }
+
     function currentCalc(){
       if (state.pattern==='visgraat') return calcVisgraat(state.lengteM, state.breedteM);
       return calcRecht(state.lengteM, state.breedteM, state.maatMm, state.richting);
@@ -328,20 +349,36 @@
 
     function updateAll(){
       syncMaatAvailability();
+      syncColorAvailability();
       $('#hhbc-poleSizeWrapper').hidden = (state.poles !== 'with');
 
       var calc = currentCalc();
-      var pricePerBoard = state.pattern==='visgraat' ? PRICE_PER_BOARD.visgraat : PRICE_PER_BOARD[state.maatMm];
-      var boardsPrice = calc.boards*pricePerBoard;
+      var pricePerBoard = state.pattern==='visgraat'
+        ? priceOf(PRICES.visgraat && PRICES.visgraat[state.color])
+        : priceOf(PRICES.planks && PRICES.planks[state.maatMm] && PRICES.planks[state.maatMm][state.color]);
+      var boardsPriceOk = pricePerBoard !== null;
+      var boardsPrice = boardsPriceOk ? calc.boards*pricePerBoard : 0;
       var surfaceM2 = state.lengteM*state.breedteM;
       var acc = calcAccessories(state.lengteM, state.breedteM, surfaceM2, calc.boards, calc.rowCount||0, state.pattern, state.poles, state.poleSize);
+      var pricesComplete = boardsPriceOk && acc.complete;
 
       var subtotal = boardsPrice + acc.total;
       var discount = discountApplied ? subtotal*(discountPct/100) : 0;
       var total = Math.round(subtotal-discount);
 
-      $('#hhbc-prTotal').textContent = fmtEUR(total);
-      $('#hhbc-prPerM2').textContent = fmtEUR(Math.round(total/surfaceM2));
+      var warningEl = $('#hhbc-priceWarning');
+      var cartBtnEl = $('#hhbc-cartBtn');
+      if (!pricesComplete){
+        warningEl.hidden = false;
+        cartBtnEl.disabled = true;
+        $('#hhbc-prTotal').textContent = '—';
+        $('#hhbc-prPerM2').textContent = '—';
+      } else {
+        warningEl.hidden = true;
+        cartBtnEl.disabled = false;
+        $('#hhbc-prTotal').textContent = fmtEUR(total);
+        $('#hhbc-prPerM2').textContent = fmtEUR(Math.round(total/surfaceM2));
+      }
       $('#hhbc-odSurface').textContent = fmtM2(surfaceM2);
       $('#hhbc-odPattern').textContent = (state.pattern==='visgraat'?'Visgraat':'Recht') + ' · in de ' + state.richting;
       $('#hhbc-odMaat').textContent = (state.pattern==='visgraat'?'140 mm':state.maatMm+' mm') + ' · ' + (state.color==='espresso'?'Espresso':'Ebony');

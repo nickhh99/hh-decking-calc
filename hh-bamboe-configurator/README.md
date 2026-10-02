@@ -22,17 +22,32 @@ te proberen onregelmatige vormen zelf te configureren.
 - `promo_code` — kortingscode die in de chip + prijsregel wordt getoond en gecontroleerd
 - `promo_pct` — bijbehorend kortingspercentage
 
-## Belangrijk: prijzen zijn nog indicatief
-Alle board- en accessoireprijzen in `assets/js/configurator.js` (bovenin, `PRICE_PER_BOARD`
-en `PRICE`) zijn placeholders — vervang deze door de echte Visma-prijzen voordat de
-widget live gaat. De reken­regels zelf (aantal planken, regels, piketpalen/pads, clips,
-olie) zijn 1-op-1 overgenomen uit `hh-decking-calc-v2/includes/class-calculator.php`.
+## Prijzen: live uit WooCommerce, nergens hardcoded
+`includes/config.php` bevat alleen product-/variatie-ID's (dezelfde koppelingen als
+`hh-decking-calc-v2/includes/config.php`). Bij elke paginaweergave haalt
+`hh_bc_build_price_map()` in `hh-bamboe-configurator.php` de actuele prijs per ID live
+op via `wc_get_product()->get_price()`, en geeft die als `window.HHBC.prices` mee aan de
+JS (`wp_localize_script`). Wijzig je een prijs in de shop, dan klopt de configurator
+vanzelf mee — er hoeft nergens in deze plugin iets aangepast te worden. Kan een prijs
+niet gevonden worden (product verwijderd, WooCommerce uit), dan toont de widget een
+duidelijke waarschuwing i.p.v. een misleidende "€ 0", en wordt "In winkelmand" uitgezet.
+
+De reken­regels zelf (aantal planken, regels, piketpalen/pads, clips, olie) zijn 1-op-1
+overgenomen uit `hh-decking-calc-v2/includes/class-calculator.php`. Let op: Ebony bestaat
+in de catalogus alleen bij de 140mm vlonderplank — bij 100/200mm (recht patroon) is
+alleen Espresso leverbaar; de UI dwingt dat ook af (zie `syncColorAvailability()` in
+`assets/js/configurator.js`).
+
+Wijzig je een product-ID in `hh-decking-calc-v2/includes/config.php` (nieuw product,
+vervangen variatie), werk `hh-bamboe-configurator/includes/config.php` dan ook bij —
+er is bewust geen harde runtime-afhankelijkheid tussen de twee plugins.
 
 ## Geen echte winkelmand (nog)
-De knop "In winkelmand" is nu een UI-bevestiging zonder WooCommerce-koppeling — bewust,
-omdat de prijzen nog indicatief zijn. Zodra er echte productmappings + prijzen zijn,
-kan dit net als in `hh-decking-calc-v2/includes/class-rest.php` naar een
-`/add-to-cart`-REST-endpoint.
+De knop "In winkelmand" is nu een UI-bevestiging zonder WooCommerce-koppeling. De
+prijzen zijn inmiddels wel echt, maar er is nog geen `/add-to-cart`-endpoint gebouwd dat
+daadwerkelijk deze regels (plank + regels + palen/pads + clips + olie) in de mand zet.
+Dat kan, net als in `hh-decking-calc-v2/includes/class-rest.php`, als REST-route die de
+client-side berekende lijst van product/variatie-ID's + aantallen ontvangt.
 
 ## Techniek
 - Eén self-contained widget: alle CSS-classes zijn geprefixt met `hh-bc-`, alle

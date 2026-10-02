@@ -112,6 +112,7 @@
 
 .hh-bc-color-opt{display:flex;align-items:center;gap:7px;padding:6px 8px;justify-content:center;}
 .hh-bc-color-opt canvas{width:26px;height:19px;border-radius:3px;flex:none;border:1px solid var(--hh-bc-border);}
+.hh-bc-color-opt-text{display:flex;flex-direction:column;align-items:flex-start;text-align:left;}
 
 /* ---------- prijsopbouw (details) ---------- */
 .hh-bc-price-details{border:1px solid var(--hh-bc-border);border-radius:6px;margin-top:2px;margin-bottom:14px;overflow:hidden;}
@@ -141,6 +142,12 @@
 .hh-bc-discount-msg.hh-bc-ok{color:var(--hh-bc-green);}
 .hh-bc-discount-msg.hh-bc-err{color:var(--hh-bc-bad);}
 
+/* ---------- prijs-waarschuwing (bij ontbrekende WooCommerce-prijs) ---------- */
+.hh-bc-price-warning{flex:none;padding:7px 16px;font-size:.72rem;line-height:1.35;
+  background:#fdeeee;border-top:1px solid #f0c7c7;color:#8a2f2f;}
+.hh-bc-price-warning a{color:var(--hh-bc-bad);font-weight:700;}
+.hh-bc-price-warning[hidden]{display:none;}
+
 /* ---------- prijsbalk (altijd zichtbaar) ---------- */
 .hh-bc-pricebar{flex:none;display:flex;align-items:center;gap:10px;padding:9px 16px;
   border-top:1px solid var(--hh-bc-border);background:var(--hh-bc-white);}
@@ -153,6 +160,8 @@
   transition:background-color .15s ease;white-space:nowrap;}
 .hh-bc-btn-cart:hover{background:var(--hh-bc-green-hover);}
 .hh-bc-btn-cart.hh-bc-added{background:#2f8f4e;}
+.hh-bc-btn-cart:disabled{background:#bbb;cursor:not-allowed;}
+.hh-bc-btn-cart:disabled:hover{background:#bbb;}
 
 @media (max-width:420px){
   .hh-bc-btn-cart{padding:0 13px;font-size:.78rem;}
