@@ -69,8 +69,8 @@
       regelQty: regelQty, regelPrice: regelPrice,
       poles: poles, palenQty: palenQty, padsQty: padsQty, palenPrice: palenPrice,
       boutenQty: boutenQty, boutenPrice: boutenPrice,
-      clipsPrice: clipsPrice,
-      oliePrice: oliePrice,
+      tussenDozen: tussenDozen, startDozen: startDozen, clipsPrice: clipsPrice,
+      largeOlie: largeOlie, smallOlie: smallOlie, oliePrice: oliePrice,
       total: regelPrice + palenPrice + boutenPrice + clipsPrice + oliePrice,
       complete: complete
     };
@@ -133,13 +133,51 @@
     ctx.strokeRect(x+0.5,y+0.5,Math.max(0,w-1),Math.max(0,h-1));
   }
 
+  // Tekent een plank met de ECHTE productfoto (zie initConfigurator → getPlankImage, die
+  // de WooCommerce-afbeelding van het gekozen product ophaalt). De foto wordt "cover"-
+  // gecropt per plankcel en om en om gespiegeld, zodat één foto niet als een duidelijk
+  // herhaald kopie-plak-patroon oogt — plus een lichte, pseudo-random helderheidsvariatie
+  // per plank voor wat natuurlijke variatie, net als bij echte vlonderplanken.
+  function drawPhotoPlank(ctx,x,y,w,h,img,seed){
+    if (w<=0||h<=0) return;
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    var scale = Math.max(w/iw, h/ih);
+    var sw = w/scale, sh = h/scale;
+    var sx = (iw-sw)/2, sy = (ih-sh)/2;
+    var flip = hash(seed) > 0.5;
+    ctx.save();
+    if (flip){
+      ctx.translate(x+w, y);
+      ctx.scale(-1,1);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+    } else {
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    }
+    ctx.restore();
+    var shade = 0.82 + hash(seed+5)*0.36;
+    if (shade < 1){ ctx.fillStyle = 'rgba(0,0,0,'+((1-shade)*0.35).toFixed(3)+')'; ctx.fillRect(x,y,w,h); }
+    else if (shade > 1){ ctx.fillStyle = 'rgba(255,255,255,'+((shade-1)*0.25).toFixed(3)+')'; ctx.fillRect(x,y,w,h); }
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x+0.5,y+0.5,Math.max(0,w-1),Math.max(0,h-1));
+  }
+
   // Rechte planken: rijen lopen in de gekozen richting, met verspringende (wildverband) naden.
-  function drawStraightField(ctx,x0,y0,w,h,pxPerM,maatMm,richting,colorKey){
+  // `photoImg` (optioneel): echte productfoto — zodra geladen wordt die gebruikt i.p.v. de
+  // procedureel getekende placeholder-plank.
+  function drawStraightField(ctx,x0,y0,w,h,pxPerM,maatMm,richting,colorKey,photoImg){
     var pw = (maatMm/1000)*pxPerM;
     var pl = (MAAT[maatMm].boardLenMm/1000)*pxPerM;
     var vertical = (richting === 'breedte');
     ctx.fillStyle = rgb(plankColor(colorKey,0));
     ctx.fillRect(x0,y0,w,h);
+
+    var usePhoto = !!(photoImg && photoImg.complete && photoImg.naturalWidth);
+    function plank(x,y,ww,hh,seed){
+      if (usePhoto) drawPhotoPlank(ctx,x,y,ww,hh,photoImg,seed);
+      else drawPlank(ctx,x,y,ww,hh,colorKey,seed);
+    }
 
     var offsets = [0,0.5,0.22,0.72];
     var seed = 0;
@@ -149,7 +187,7 @@
         var y = y0 + r*pw;
         var off = offsets[r%offsets.length]*pl;
         var x = x0 - pl + off;
-        while (x < x0+w){ drawPlank(ctx,x,y,pl,Math.min(pw*0.94,y0+h-y),colorKey,seed++); x += pl; }
+        while (x < x0+w){ plank(x,y,pl,Math.min(pw*0.94,y0+h-y),seed++); x += pl; }
       }
     } else {
       var cols = Math.ceil(w/pw)+1;
@@ -157,7 +195,7 @@
         var x2 = x0 + c*pw;
         var off2 = offsets[c%offsets.length]*pl;
         var y2 = y0 - pl + off2;
-        while (y2 < y0+h){ drawPlank(ctx,x2,y2,Math.min(pw*0.94,x0+w-x2),pl,colorKey,seed++); y2 += pl; }
+        while (y2 < y0+h){ plank(x2,y2,Math.min(pw*0.94,x0+w-x2),pl,seed++); y2 += pl; }
       }
     }
   }
@@ -165,7 +203,7 @@
   // Visgraat: haaks op elkaar staande planken in een trapsgewijs patroon, over de hele
   // diagonaal getekend en daarna op de terrasvorm geclipt. "Breedte"-richting spiegelt
   // het patroon zodat de v-vorm de andere kant op wijst.
-  function drawHerringboneField(ctx,x0,y0,w,h,pxPerM,richting,colorKey){
+  function drawHerringboneField(ctx,x0,y0,w,h,pxPerM,richting,colorKey,photoImg){
     ctx.fillStyle = rgb(plankColor(colorKey,0));
     ctx.fillRect(x0,y0,w,h);
     ctx.save();
@@ -177,14 +215,19 @@
     var pl = pw*3;
     var diag = Math.sqrt(w*w+h*h) + pl*2;
     var startX = cx-diag/2, startY = cy-diag/2, endX = cx+diag/2, endY = cy+diag/2;
+    var usePhoto = !!(photoImg && photoImg.complete && photoImg.naturalWidth);
+    function plank(x,y,ww,hh,seed){
+      if (usePhoto) drawPhotoPlank(ctx,x,y,ww,hh,photoImg,seed);
+      else drawPlank(ctx,x,y,ww,hh,colorKey,seed);
+    }
     var row=0, seed=0;
     for (var y=startY; y<endY; y+=pw){
       var horizontal = (row%2===0);
       var step = horizontal ? pl : pw;
       var x = startX;
       while (x<endX){
-        if (horizontal) drawPlank(ctx,x,y,pl,pw*0.92,colorKey,seed++);
-        else drawPlank(ctx,x,y,pw*0.92,pl,colorKey,seed++);
+        if (horizontal) plank(x,y,pl,pw*0.92,seed++);
+        else plank(x,y,pw*0.92,pl,seed++);
         x += step;
       }
       row++;
@@ -202,13 +245,14 @@
   var TOP_SCALE = 0.62;     // breedte van de verste rand t.o.v. de dichtstbijzijnde rand
   var VERT_COMPRESS = 0.90; // hoeveel van de beschikbare hoogte het trapezium gebruikt
 
-  function buildFlatPattern(state, flatW, flatH){
+  function buildFlatPattern(state, flatW, flatH, getImage){
     flatCanvas.width = flatW;
     flatCanvas.height = flatH;
     var fctx = flatCanvas.getContext('2d');
     var pxPerM = flatW/state.lengteM;
-    if (state.pattern === 'visgraat') drawHerringboneField(fctx,0,0,flatW,flatH,pxPerM,state.richting,state.color);
-    else drawStraightField(fctx,0,0,flatW,flatH,pxPerM,state.maatMm,state.richting,state.color);
+    var img = getImage ? getImage(state) : null;
+    if (state.pattern === 'visgraat') drawHerringboneField(fctx,0,0,flatW,flatH,pxPerM,state.richting,state.color,img);
+    else drawStraightField(fctx,0,0,flatW,flatH,pxPerM,state.maatMm,state.richting,state.color,img);
     return flatCanvas;
   }
 
@@ -232,7 +276,7 @@
     ctx.closePath();
   }
 
-  function render(canvas, state){
+  function render(canvas, state, getImage){
     var ctx = canvas.getContext('2d');
     var dpr = Math.min(window.devicePixelRatio||1,2);
     var cssW = canvas.clientWidth, cssH = canvas.clientHeight;
@@ -268,9 +312,9 @@
     ctx.restore();
 
     // plat patroon opbouwen en schuin op het canvas plakken
-    var flatW = state.compact ? 220 : 520;
+    var flatW = state.compact ? 220 : 640;
     var flatH = Math.max(1, Math.round(flatW * (state.breedteM/state.lengteM)));
-    var flat = buildFlatPattern(state, flatW, flatH);
+    var flat = buildFlatPattern(state, flatW, flatH, getImage);
 
     ctx.save();
     pathFromCorners(ctx,corners);
@@ -307,6 +351,9 @@
     var PROMO_CODE = (root.getAttribute('data-hhbc-promo-code') || 'BAMBOE15').toUpperCase();
     var PROMO_PCT = parseFloat(root.getAttribute('data-hhbc-promo-pct')) || 15;
     var discountPct=0, discountApplied=false;
+    // Laatst getoonde berekening — de "In winkelmand"-knop bouwt de regels hieruit op,
+    // zodat de mand exact overeenkomt met wat de klant net zag (geen herberekening-race).
+    var lastCalc=null, lastAcc=null, lastPricesComplete=false;
 
     function $(sel){ return root.querySelector(sel); }
     function $all(sel){ return root.querySelectorAll(sel); }
@@ -314,6 +361,27 @@
     var stageCanvas = $('#hhbc-stage');
     var inLengte = $('#hhbc-inLengte');
     var inBreedte = $('#hhbc-inBreedte');
+
+    // Echte productfoto's (WooCommerce featured image per product-ID), live meegegeven
+    // door hh_bc_build_image_map() in hh-bamboe-configurator.php — zie window.HHBC.images.
+    // Geen URL bekend of nog niet geladen? Dan valt de tekenlogica terug op de procedurele
+    // placeholder-planken (zie drawStraightField/drawHerringboneField's `usePhoto`-check).
+    var IMAGES = (window.HHBC && window.HHBC.images) || {};
+    var imageCache = {};
+    function getPlankImage(st){
+      var url = st.pattern === 'visgraat'
+        ? (IMAGES.visgraat && IMAGES.visgraat[st.color])
+        : (IMAGES.planks && IMAGES.planks[st.maatMm] && IMAGES.planks[st.maatMm][st.color]);
+      if (!url) return null;
+      var img = imageCache[url];
+      if (!img){
+        img = new Image();
+        img.onload = function(){ updateAll(); };
+        img.src = url;
+        imageCache[url] = img;
+      }
+      return img;
+    }
 
     function fmtEUR(n){ return '€ '+n.toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:0}); }
     function fmtM2(n){ return n.toLocaleString('nl-NL',{minimumFractionDigits:1,maximumFractionDigits:1})+' m²'; }
@@ -366,6 +434,8 @@
       var discount = discountApplied ? subtotal*(discountPct/100) : 0;
       var total = Math.round(subtotal-discount);
 
+      lastCalc = calc; lastAcc = acc; lastPricesComplete = pricesComplete;
+
       var warningEl = $('#hhbc-priceWarning');
       var cartBtnEl = $('#hhbc-cartBtn');
       if (!pricesComplete){
@@ -399,7 +469,7 @@
       if (discountApplied){ discRow.hidden=false; $('#hhbc-srDiscountPct').textContent=discountPct; $('#hhbc-srDiscount').textContent='− '+fmtEUR(Math.round(discount)); }
       else { discRow.hidden=true; }
 
-      requestAnimationFrame(function(){ render(stageCanvas, state); });
+      requestAnimationFrame(function(){ render(stageCanvas, state, getPlankImage); });
       renderPresetThumbs();
       renderSwatches();
     }
@@ -427,7 +497,8 @@
         if (!w||!h) return;
         cv.width=w*dpr; cv.height=h*dpr;
         var ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-        drawStraightField(ctx,0,0,w,h,1,140,'lengte',key);
+        var swatchImg = getPlankImage({ pattern:'recht', maatMm:140, color:key });
+        drawStraightField(ctx,0,0,w,h,1,140,'lengte',key,swatchImg);
       });
     }
 
@@ -464,7 +535,7 @@
         var w=cv.clientWidth,h=cv.clientHeight;
         if(!w||!h) return;
         cv.width=w*dpr; cv.height=h*dpr;
-        render(cv, { lengteM:4, breedteM:3, pattern:p.pattern, richting:p.richting, maatMm:p.maatMm, color:p.color, compact:true });
+        render(cv, { lengteM:4, breedteM:3, pattern:p.pattern, richting:p.richting, maatMm:p.maatMm, color:p.color, compact:true }, getPlankImage);
       });
     }
 
@@ -478,16 +549,106 @@
       updateAll();
     });
 
-    // ---------- winkelmand ----------
-    // Let op: dit is nu puur een UI-bevestiging, geen echte WooCommerce add-to-cart.
-    // De board-/accessoireprijzen hierboven zijn nog indicatief; pas wanneer die zijn
-    // vervangen door echte Visma-prijzen + productmappings kan dit (net als in
-    // hh-decking-calc-v2/includes/class-rest.php) naar een REST add-to-cart endpoint.
+    // ---------- winkelmand (echte WooCommerce add-to-cart) ----------
+    var IDS = (window.HHBC && window.HHBC.ids) || null;
+    var REST = (window.HHBC && window.HHBC.rest) || null;
+    var NONCE = (window.HHBC && window.HHBC.nonce) || '';
+    var I18N = (window.HHBC && window.HHBC.i18n) || {};
+
+    // Bouwt de regels (product/variatie-ID + aantal) voor de huidige configuratie, met
+    // dezelfde product-ID's als hh_bc_build_price_map() in hh-bamboe-configurator.php.
+    function buildCartLines(){
+      if (!IDS || !lastCalc || !lastAcc) return null;
+      var lines = [];
+
+      var boardId = state.pattern === 'visgraat'
+        ? (IDS.visgraat && IDS.visgraat[state.color])
+        : (IDS.planks && IDS.planks[state.maatMm] && IDS.planks[state.maatMm][state.color]);
+      if (!boardId) return null;
+      lines.push({ product_id: boardId, variation_id: 0, qty: lastCalc.boards });
+
+      if (lastAcc.regelQty > 0){
+        lines.push({ product_id: IDS.regel.product, variation_id: IDS.regel.variation, qty: lastAcc.regelQty });
+      }
+
+      if (state.poles === 'with'){
+        var paal = IDS.piketpaal[state.poleSize];
+        if (lastAcc.palenQty > 0 && paal){
+          lines.push({ product_id: paal.product, variation_id: paal.variation, qty: lastAcc.palenQty });
+        }
+        var bouten = IDS.slotbouten[state.poleSize];
+        if (lastAcc.boutenQty > 0 && bouten){
+          lines.push({ product_id: bouten.product, variation_id: bouten.variation, qty: lastAcc.boutenQty });
+        }
+      } else if (lastAcc.padsQty > 0){
+        lines.push({ product_id: IDS.granulaatpad, variation_id: 0, qty: lastAcc.padsQty });
+      }
+
+      if (lastAcc.tussenDozen > 0){
+        lines.push({ product_id: IDS.tussenclips, variation_id: 0, qty: lastAcc.tussenDozen });
+      }
+      if (lastAcc.startDozen > 0){
+        lines.push({ product_id: IDS.startclips, variation_id: 0, qty: lastAcc.startDozen });
+      }
+      if (lastAcc.largeOlie > 0){
+        lines.push({ product_id: IDS.olie.large, variation_id: 0, qty: lastAcc.largeOlie });
+      }
+      if (lastAcc.smallOlie > 0){
+        lines.push({ product_id: IDS.olie.small, variation_id: 0, qty: lastAcc.smallOlie });
+      }
+
+      return lines;
+    }
+
+    var cartMsgEl = $('#hhbc-cartMsg');
+    function setCartMsg(text){
+      if (!cartMsgEl) return;
+      if (text){ cartMsgEl.textContent = text; cartMsgEl.hidden = false; }
+      else { cartMsgEl.hidden = true; }
+    }
+
     $('#hhbc-cartBtn').addEventListener('click', function(){
-      var btn=this;
-      btn.textContent='✓ Toegevoegd';
-      btn.classList.add('hh-bc-added');
-      setTimeout(function(){ btn.textContent='In winkelmand'; btn.classList.remove('hh-bc-added'); }, 2200);
+      var btn = this;
+      if (btn.disabled || !lastPricesComplete) return;
+      setCartMsg(null);
+
+      var lines = buildCartLines();
+      if (!lines || !lines.length || !REST){
+        setCartMsg(I18N.cartError || 'Toevoegen aan winkelmand is niet gelukt.');
+        return;
+      }
+
+      var originalText = 'In winkelmand';
+      btn.disabled = true;
+      btn.textContent = 'Bezig...';
+
+      fetch(REST.base + '/add-to-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': NONCE },
+        body: JSON.stringify({ lines: lines })
+      })
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data && data.success){
+            btn.textContent = '✓ Toegevoegd';
+            btn.classList.add('hh-bc-added');
+            setTimeout(function(){
+              if (data.cart_url) window.location.href = data.cart_url;
+            }, 500);
+          } else {
+            var msg = (data && data.out_of_stock && data.items && data.items.length)
+              ? 'Niet op voorraad: ' + data.items.join(', ')
+              : (I18N.cartError || 'Toevoegen aan winkelmand is niet gelukt.');
+            setCartMsg(msg);
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        })
+        .catch(function(){
+          setCartMsg(I18N.cartError || 'Toevoegen aan winkelmand is niet gelukt.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+        });
     });
 
     // ---------- vorm-notitie (onthoudt dismiss per bezoeker, niet kritisch als opslag faalt) ----------

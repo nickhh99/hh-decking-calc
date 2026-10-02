@@ -22,8 +22,10 @@ define( 'HH_BC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HH_BC_URL', plugin_dir_url( __FILE__ ) );
 
 require_once HH_BC_PATH . 'includes/config.php';
+require_once HH_BC_PATH . 'includes/class-rest.php';
 
 use const HH\BambooConfigurator\PRODUCT_IDS;
+use HH\BambooConfigurator\REST;
 
 /**
  * Huidige WooCommerce-prijs van een (simpel of variatie-)product, als float.
@@ -87,6 +89,44 @@ function hh_bc_build_price_map(): array {
 }
 
 /**
+ * Productfoto (featured image) van een WooCommerce-product, groot formaat.
+ * Geeft null terug als er geen afbeelding is — dan valt de front-end terug op de
+ * procedureel getekende placeholder-plank i.p.v. een kapot plaatje te tonen.
+ */
+function hh_bc_get_image( int $product_id ): ?string {
+	if ( ! function_exists( 'get_the_post_thumbnail_url' ) ) {
+		return null;
+	}
+	$url = get_the_post_thumbnail_url( $product_id, 'large' );
+	return $url ?: null;
+}
+
+/**
+ * Bouwt de afbeeldingen-map voor de vlonderplanken + visgraat: de ECHTE productfoto uit
+ * WooCommerce, zodat de preview op echte planken lijkt i.p.v. een canvas-tekening.
+ */
+function hh_bc_build_image_map(): array {
+	$ids = PRODUCT_IDS;
+
+	$images = [
+		'planks'   => [],
+		'visgraat' => [
+			'espresso' => hh_bc_get_image( $ids['visgraat']['espresso'] ),
+			'ebony'    => hh_bc_get_image( $ids['visgraat']['ebony'] ),
+		],
+	];
+
+	foreach ( $ids['planks'] as $maat => $colors ) {
+		$images['planks'][ $maat ] = [];
+		foreach ( $colors as $color => $product_id ) {
+			$images['planks'][ $maat ][ $color ] = hh_bc_get_image( $product_id );
+		}
+	}
+
+	return $images;
+}
+
+/**
  * Assets & fonts enqueuen — alleen op pagina's die de shortcode daadwerkelijk gebruiken,
  * zodat deze widget niet overal op de site wordt geladen.
  */
@@ -125,12 +165,31 @@ function hh_bc_enqueue_assets() {
 			// geen hardcoded prijzen. Ontbrekende/onvindbare producten komen als null door;
 			// de JS toont dan een duidelijke melding i.p.v. een foutieve "€ 0".
 			'prices' => hh_bc_build_price_map(),
+			// Echte productfoto's (WooCommerce featured image) voor de preview.
+			'images' => hh_bc_build_image_map(),
+			// Product-/variatie-ID's, nodig om de "In winkelmand"-regels mee samen te
+			// stellen. Gewoon WooCommerce-ID's, niets gevoeligs.
+			'ids'    => PRODUCT_IDS,
+			'rest'   => array(
+				'base' => esc_url_raw( get_rest_url( null, 'hh-bamboe-configurator/v1' ) ),
+			),
+			'nonce'  => wp_create_nonce( 'wp_rest' ),
+			'i18n'   => array(
+				'cartError' => __( 'Toevoegen aan winkelmand is niet gelukt. Probeer het opnieuw.', 'hh-bamboe-configurator' ),
+			),
 		)
 	);
 
 	wp_enqueue_script( 'hh-bc-configurator' );
 }
 add_action( 'wp_enqueue_scripts', 'hh_bc_enqueue_assets' );
+
+add_action(
+	'rest_api_init',
+	static function () {
+		REST::register_routes();
+	}
+);
 
 /**
  * Shortcode: [hh_bamboe_configurator]
@@ -296,6 +355,7 @@ function hh_bc_shortcode( $atts ) {
 				</div>
 
 				<div class="hh-bc-price-warning" id="hhbc-priceWarning" hidden>Niet alle prijzen konden geladen worden. Ververs de pagina, of <a href="<?php echo $contact_url; ?>">vraag een offerte op maat aan</a>.</div>
+				<div class="hh-bc-price-warning" id="hhbc-cartMsg" hidden></div>
 
 				<div class="hh-bc-pricebar">
 					<div class="hh-bc-pricebar-info">
